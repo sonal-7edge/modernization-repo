@@ -32,6 +32,16 @@ public class CreateModel : PageModel
             "student",   // Prefix for form value.
             s => s.FirstMidName, s => s.LastName, s => s.EnrollmentDate))
         {
+            // Convert DateTime to UTC for PostgreSQL compatibility
+            if (emptyStudent.EnrollmentDate.Kind == DateTimeKind.Unspecified)
+            {
+                emptyStudent.EnrollmentDate = DateTime.SpecifyKind(emptyStudent.EnrollmentDate, DateTimeKind.Utc);
+            }
+            else if (emptyStudent.EnrollmentDate.Kind == DateTimeKind.Local)
+            {
+                emptyStudent.EnrollmentDate = emptyStudent.EnrollmentDate.ToUniversalTime();
+            }
+
             _context.Students.Add(emptyStudent);
             await _context.SaveChangesAsync();
             return RedirectToPage("./Index");

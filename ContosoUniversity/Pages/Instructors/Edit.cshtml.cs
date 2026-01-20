@@ -61,6 +61,16 @@ public class EditModel : InstructorCoursesPageModel
             i => i.FirstMidName, i => i.LastName,
             i => i.HireDate, i => i.OfficeAssignment))
         {
+            // Convert DateTime to UTC for PostgreSQL compatibility
+            if (instructorToUpdate.HireDate.Kind == DateTimeKind.Unspecified)
+            {
+                instructorToUpdate.HireDate = DateTime.SpecifyKind(instructorToUpdate.HireDate, DateTimeKind.Utc);
+            }
+            else if (instructorToUpdate.HireDate.Kind == DateTimeKind.Local)
+            {
+                instructorToUpdate.HireDate = instructorToUpdate.HireDate.ToUniversalTime();
+            }
+
             if (String.IsNullOrWhiteSpace(
                 instructorToUpdate.OfficeAssignment?.Location))
             {

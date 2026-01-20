@@ -6,7 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 
 builder.Services.AddDbContext<SchoolContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("SchoolContext")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("SchoolContext")));
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
@@ -24,6 +24,9 @@ else
     app.UseDeveloperExceptionPage();
     app.UseMigrationsEndPoint();
 }
+
+// Add custom 404 handling
+app.UseStatusCodePagesWithReExecute("/StatusCode/{0}");
 
 using (var scope = app.Services.CreateScope())
 {

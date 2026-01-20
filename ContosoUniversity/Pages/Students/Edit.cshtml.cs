@@ -47,6 +47,16 @@ public class EditModel : PageModel
             "student",
             s => s.FirstMidName, s => s.LastName, s => s.EnrollmentDate))
         {
+            // Convert DateTime to UTC for PostgreSQL compatibility
+            if (studentToUpdate.EnrollmentDate.Kind == DateTimeKind.Unspecified)
+            {
+                studentToUpdate.EnrollmentDate = DateTime.SpecifyKind(studentToUpdate.EnrollmentDate, DateTimeKind.Utc);
+            }
+            else if (studentToUpdate.EnrollmentDate.Kind == DateTimeKind.Local)
+            {
+                studentToUpdate.EnrollmentDate = studentToUpdate.EnrollmentDate.ToUniversalTime();
+            }
+
             await _context.SaveChangesAsync();
             return RedirectToPage("./Index");
         }

@@ -31,7 +31,18 @@ public class CreateModel : PageModel
     {
         if (!ModelState.IsValid)
         {
+            ViewData["InstructorID"] = new SelectList(_context.Instructors, "ID", "FirstMidName");
             return Page();
+        }
+
+        // Convert DateTime to UTC for PostgreSQL compatibility
+        if (Department.StartDate.Kind == DateTimeKind.Unspecified)
+        {
+            Department.StartDate = DateTime.SpecifyKind(Department.StartDate, DateTimeKind.Utc);
+        }
+        else if (Department.StartDate.Kind == DateTimeKind.Local)
+        {
+            Department.StartDate = Department.StartDate.ToUniversalTime();
         }
 
         _context.Departments.Add(Department);

@@ -65,6 +65,16 @@ public class CreateModel : InstructorCoursesPageModel
                             i => i.FirstMidName, i => i.LastName,
                             i => i.HireDate, i => i.OfficeAssignment))
             {
+                // Convert DateTime to UTC for PostgreSQL compatibility
+                if (newInstructor.HireDate.Kind == DateTimeKind.Unspecified)
+                {
+                    newInstructor.HireDate = DateTime.SpecifyKind(newInstructor.HireDate, DateTimeKind.Utc);
+                }
+                else if (newInstructor.HireDate.Kind == DateTimeKind.Local)
+                {
+                    newInstructor.HireDate = newInstructor.HireDate.ToUniversalTime();
+                }
+
                 _context.Instructors.Add(newInstructor);
                 await _context.SaveChangesAsync();
                 return RedirectToPage("./Index");

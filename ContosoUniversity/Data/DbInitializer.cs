@@ -16,91 +16,91 @@ public static class DbInitializer
         {
             FirstMidName = "Carson",
             LastName = "Alexander",
-            EnrollmentDate = DateTime.Parse("2016-09-01")
+            EnrollmentDate = DateTime.Parse("2016-09-01").ToUniversalTime()
         };
 
         var alonso = new Student
         {
             FirstMidName = "Meredith",
             LastName = "Alonso",
-            EnrollmentDate = DateTime.Parse("2018-09-01")
+            EnrollmentDate = DateTime.Parse("2018-09-01").ToUniversalTime()
         };
 
         var anand = new Student
         {
             FirstMidName = "Arturo",
             LastName = "Anand",
-            EnrollmentDate = DateTime.Parse("2019-09-01")
+            EnrollmentDate = DateTime.Parse("2019-09-01").ToUniversalTime()
         };
 
         var barzdukas = new Student
         {
             FirstMidName = "Gytis",
             LastName = "Barzdukas",
-            EnrollmentDate = DateTime.Parse("2018-09-01")
+            EnrollmentDate = DateTime.Parse("2018-09-01").ToUniversalTime()
         };
 
         var li = new Student
         {
             FirstMidName = "Yan",
             LastName = "Li",
-            EnrollmentDate = DateTime.Parse("2018-09-01")
+            EnrollmentDate = DateTime.Parse("2018-09-01").ToUniversalTime()
         };
 
         var justice = new Student
         {
             FirstMidName = "Peggy",
             LastName = "Justice",
-            EnrollmentDate = DateTime.Parse("2017-09-01")
+            EnrollmentDate = DateTime.Parse("2017-09-01").ToUniversalTime()
         };
 
         var norman = new Student
         {
             FirstMidName = "Laura",
             LastName = "Norman",
-            EnrollmentDate = DateTime.Parse("2019-09-01")
+            EnrollmentDate = DateTime.Parse("2019-09-01").ToUniversalTime()
         };
 
         var olivetto = new Student
         {
             FirstMidName = "Nino",
             LastName = "Olivetto",
-            EnrollmentDate = DateTime.Parse("2011-09-01")
+            EnrollmentDate = DateTime.Parse("2011-09-01").ToUniversalTime()
         };
 
         var abercrombie = new Instructor
         {
             FirstMidName = "Kim",
             LastName = "Abercrombie",
-            HireDate = DateTime.Parse("1995-03-11")
+            HireDate = DateTime.Parse("1995-03-11").ToUniversalTime()
         };
 
         var fakhouri = new Instructor
         {
             FirstMidName = "Fadi",
             LastName = "Fakhouri",
-            HireDate = DateTime.Parse("2002-07-06")
+            HireDate = DateTime.Parse("2002-07-06").ToUniversalTime()
         };
 
         var harui = new Instructor
         {
             FirstMidName = "Roger",
             LastName = "Harui",
-            HireDate = DateTime.Parse("1998-07-01")
+            HireDate = DateTime.Parse("1998-07-01").ToUniversalTime()
         };
 
         var kapoor = new Instructor
         {
             FirstMidName = "Candace",
             LastName = "Kapoor",
-            HireDate = DateTime.Parse("2001-01-15")
+            HireDate = DateTime.Parse("2001-01-15").ToUniversalTime()
         };
 
         var zheng = new Instructor
         {
             FirstMidName = "Roger",
             LastName = "Zheng",
-            HireDate = DateTime.Parse("2004-02-12")
+            HireDate = DateTime.Parse("2004-02-12").ToUniversalTime()
         };
 
         var officeAssignments = new OfficeAssignment[]
@@ -122,7 +122,7 @@ public static class DbInitializer
         {
             Name = "English",
             Budget = 350000,
-            StartDate = DateTime.Parse("2007-09-01"),
+            StartDate = DateTime.Parse("2007-09-01").ToUniversalTime(),
             Administrator = abercrombie
         };
 
@@ -130,7 +130,7 @@ public static class DbInitializer
         {
             Name = "Mathematics",
             Budget = 100000,
-            StartDate = DateTime.Parse("2007-09-01"),
+            StartDate = DateTime.Parse("2007-09-01").ToUniversalTime(),
             Administrator = fakhouri
         };
 
@@ -138,7 +138,7 @@ public static class DbInitializer
         {
             Name = "Engineering",
             Budget = 350000,
-            StartDate = DateTime.Parse("2007-09-01"),
+            StartDate = DateTime.Parse("2007-09-01").ToUniversalTime(),
             Administrator = harui
         };
 
@@ -146,7 +146,7 @@ public static class DbInitializer
         {
             Name = "Economics",
             Budget = 100000,
-            StartDate = DateTime.Parse("2007-09-01"),
+            StartDate = DateTime.Parse("2007-09-01").ToUniversalTime(),
             Administrator = kapoor
         };
 

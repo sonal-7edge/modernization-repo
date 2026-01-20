@@ -1,23 +1,26 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace ContosoUniversity.Migrations
 {
+    /// <inheritdoc />
     public partial class InitialCreate : Migration
     {
+        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
                 name: "Instructor",
                 columns: table => new
                 {
-                    ID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    LastName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    FirstName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    HireDate = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    ID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    LastName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    FirstName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    HireDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -28,11 +31,11 @@ namespace ContosoUniversity.Migrations
                 name: "Student",
                 columns: table => new
                 {
-                    ID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    LastName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    FirstName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    EnrollmentDate = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    ID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    LastName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    FirstName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    EnrollmentDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -43,12 +46,13 @@ namespace ContosoUniversity.Migrations
                 name: "Departments",
                 columns: table => new
                 {
-                    DepartmentID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    DepartmentID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     Budget = table.Column<decimal>(type: "money", nullable: false),
-                    StartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    InstructorID = table.Column<int>(type: "int", nullable: true)
+                    StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    InstructorID = table.Column<int>(type: "integer", nullable: true),
+                    ConcurrencyToken = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -64,8 +68,8 @@ namespace ContosoUniversity.Migrations
                 name: "OfficeAssignments",
                 columns: table => new
                 {
-                    InstructorID = table.Column<int>(type: "int", nullable: false),
-                    Location = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true)
+                    InstructorID = table.Column<int>(type: "integer", nullable: false),
+                    Location = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -82,10 +86,10 @@ namespace ContosoUniversity.Migrations
                 name: "Course",
                 columns: table => new
                 {
-                    CourseID = table.Column<int>(type: "int", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    Credits = table.Column<int>(type: "int", nullable: false),
-                    DepartmentID = table.Column<int>(type: "int", nullable: false)
+                    CourseID = table.Column<int>(type: "integer", nullable: false),
+                    Title = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    Credits = table.Column<int>(type: "integer", nullable: false),
+                    DepartmentID = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -102,8 +106,8 @@ namespace ContosoUniversity.Migrations
                 name: "CourseInstructor",
                 columns: table => new
                 {
-                    CoursesCourseID = table.Column<int>(type: "int", nullable: false),
-                    InstructorsID = table.Column<int>(type: "int", nullable: false)
+                    CoursesCourseID = table.Column<int>(type: "integer", nullable: false),
+                    InstructorsID = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -126,11 +130,11 @@ namespace ContosoUniversity.Migrations
                 name: "Enrollments",
                 columns: table => new
                 {
-                    EnrollmentID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CourseID = table.Column<int>(type: "int", nullable: false),
-                    StudentID = table.Column<int>(type: "int", nullable: false),
-                    Grade = table.Column<int>(type: "int", nullable: true)
+                    EnrollmentID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    CourseID = table.Column<int>(type: "integer", nullable: false),
+                    StudentID = table.Column<int>(type: "integer", nullable: false),
+                    Grade = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -175,6 +179,7 @@ namespace ContosoUniversity.Migrations
                 column: "StudentID");
         }
 
+        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

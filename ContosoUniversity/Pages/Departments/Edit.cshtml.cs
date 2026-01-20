@@ -67,6 +67,16 @@ public class EditModel : PageModel
             "Department",
             s => s.Name, s => s.StartDate, s => s.Budget, s => s.InstructorID))
         {
+            // Convert DateTime to UTC for PostgreSQL compatibility
+            if (departmentToUpdate.StartDate.Kind == DateTimeKind.Unspecified)
+            {
+                departmentToUpdate.StartDate = DateTime.SpecifyKind(departmentToUpdate.StartDate, DateTimeKind.Utc);
+            }
+            else if (departmentToUpdate.StartDate.Kind == DateTimeKind.Local)
+            {
+                departmentToUpdate.StartDate = departmentToUpdate.StartDate.ToUniversalTime();
+            }
+
             try
             {
                 await _context.SaveChangesAsync();
