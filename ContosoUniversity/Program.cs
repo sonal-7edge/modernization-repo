@@ -1,51 +1,49 @@
 ﻿using ContosoUniversity.Data;
 using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorPages();
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<SchoolContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("SchoolContext")));
 
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+// CORS configuration for React development
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ReactDevelopment", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173") // Vite default port
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
-}
-else
-{
-    app.UseDeveloperExceptionPage();
-    app.UseMigrationsEndPoint();
-}
-
-// Add custom 404 handling
-app.UseStatusCodePagesWithReExecute("/StatusCode/{0}");
-
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-
-    var context = services.GetRequiredService<SchoolContext>();
-
-    context.Database.Migrate();
-
-    DbInitializer.Initialize(context);
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    app.UseCors("ReactDevelopment");
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
-
-app.UseRouting();
-
 app.UseAuthorization();
+app.MapControllers();
 
-app.MapRazorPages();
+// Database initialization
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<SchoolContext>();
+    context.Database.Migrate();
+    DbInitializer.Initialize(context);
+}
 
 app.Run();
