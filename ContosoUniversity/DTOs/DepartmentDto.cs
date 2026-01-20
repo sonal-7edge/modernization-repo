@@ -7,10 +7,10 @@ public class DepartmentDto
     public int DepartmentID { get; set; }
     public string Name { get; set; } = string.Empty;
     public decimal Budget { get; set; }
-    public DateTime StartDate { get; set; }
+    public string StartDate { get; set; } = string.Empty;
     public int? InstructorID { get; set; }
-    public string AdministratorName { get; set; } = string.Empty;
-    public string ConcurrencyToken { get; set; } = string.Empty;
+    public string? AdministratorName { get; set; }
+    public byte[]? ConcurrencyToken { get; set; }
 }
 
 public class CreateDepartmentDto
@@ -23,7 +23,7 @@ public class CreateDepartmentDto
     public decimal Budget { get; set; }
     
     [Required]
-    public DateTime StartDate { get; set; }
+    public string StartDate { get; set; } = string.Empty;
     
     public int? InstructorID { get; set; }
 }
@@ -31,10 +31,10 @@ public class CreateDepartmentDto
 public class UpdateDepartmentDto : CreateDepartmentDto
 {
     public int DepartmentID { get; set; }
-    public byte[] ConcurrencyToken { get; set; }
+    public byte[]? ConcurrencyToken { get; set; }
 }
 
-public class DepartmentListDto
+public class DepartmentListResponse
 {
     public List<DepartmentDto> Departments { get; set; } = new();
 }

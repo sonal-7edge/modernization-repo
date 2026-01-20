@@ -4,11 +4,11 @@ namespace ContosoUniversity.DTOs;
 
 public class StudentDto
 {
-    public int ID { get; set; }
+    public int Id { get; set; }
     public string LastName { get; set; } = string.Empty;
     public string FirstMidName { get; set; } = string.Empty;
-    public DateTime EnrollmentDate { get; set; }
-    public string FullName => $"{FirstMidName} {LastName}";
+    public string EnrollmentDate { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
 }
 
 public class CreateStudentDto
@@ -22,15 +22,15 @@ public class CreateStudentDto
     public string FirstMidName { get; set; } = string.Empty;
     
     [Required]
-    public DateTime EnrollmentDate { get; set; }
+    public string EnrollmentDate { get; set; } = string.Empty;
 }
 
 public class UpdateStudentDto : CreateStudentDto
 {
-    public int ID { get; set; }
+    public int Id { get; set; }
 }
 
-public class StudentListDto
+public class StudentListResponse
 {
     public List<StudentDto> Students { get; set; } = new();
     public int PageIndex { get; set; }

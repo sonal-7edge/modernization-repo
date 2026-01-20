@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "JH/Xr7+L/eBrHX1bixlcA/P9dOru3R3jElkzD0LIUxk=",
+  "Hash": "+pcyzm2lV1G05cVXRT42WchqQIqe0OQeza+Kxn8iD6U=",
   "Source": "ContosoUniversity",
   "BasePath": "_content/ContosoUniversity",
   "Mode": "Default",
@@ -16,44 +16,6 @@
     }
   ],
   "Assets": [
-    {
-      "Identity": "/home/user/Documents/Modernization/modernization-repo/ContosoUniversity/obj/Debug/net8.0/scopedcss/bundle/ContosoUniversity.styles.css",
-      "SourceId": "ContosoUniversity",
-      "SourceType": "Computed",
-      "ContentRoot": "/home/user/Documents/Modernization/modernization-repo/ContosoUniversity/obj/Debug/net8.0/scopedcss/bundle/",
-      "BasePath": "_content/ContosoUniversity",
-      "RelativePath": "ContosoUniversity.styles.css",
-      "AssetKind": "All",
-      "AssetMode": "CurrentProject",
-      "AssetRole": "Primary",
-      "AssetMergeBehavior": "",
-      "AssetMergeSource": "",
-      "RelatedAsset": "",
-      "AssetTraitName": "ScopedCss",
-      "AssetTraitValue": "ApplicationBundle",
-      "CopyToOutputDirectory": "Never",
-      "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "/home/user/Documents/Modernization/modernization-repo/ContosoUniversity/obj/Debug/net8.0/scopedcss/bundle/ContosoUniversity.styles.css"
-    },
-    {
-      "Identity": "/home/user/Documents/Modernization/modernization-repo/ContosoUniversity/obj/Debug/net8.0/scopedcss/projectbundle/ContosoUniversity.bundle.scp.css",
-      "SourceId": "ContosoUniversity",
-      "SourceType": "Computed",
-      "ContentRoot": "/home/user/Documents/Modernization/modernization-repo/ContosoUniversity/obj/Debug/net8.0/scopedcss/projectbundle/",
-      "BasePath": "_content/ContosoUniversity",
-      "RelativePath": "ContosoUniversity.bundle.scp.css",
-      "AssetKind": "All",
-      "AssetMode": "Reference",
-      "AssetRole": "Primary",
-      "AssetMergeBehavior": "",
-      "AssetMergeSource": "",
-      "RelatedAsset": "",
-      "AssetTraitName": "ScopedCss",
-      "AssetTraitValue": "ProjectBundle",
-      "CopyToOutputDirectory": "Never",
-      "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "/home/user/Documents/Modernization/modernization-repo/ContosoUniversity/obj/Debug/net8.0/scopedcss/projectbundle/ContosoUniversity.bundle.scp.css"
-    },
     {
       "Identity": "/home/user/Documents/Modernization/modernization-repo/ContosoUniversity/wwwroot/css/site.css",
       "SourceId": "ContosoUniversity",

@@ -1,5 +1,5 @@
 ﻿using ContosoUniversity.Data;
-using Microsoft.EntityFrameworkCore;
+using ContosoUniversity.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,8 +8,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<SchoolContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("SchoolContext")));
+// MongoDB services
+builder.Services.AddSingleton<MongoDbContext>();
+builder.Services.AddSingleton<ICounterService, CounterService>();
 
 // CORS configuration for React development
 builder.Services.AddCors(options =>
@@ -41,9 +42,9 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    var context = services.GetRequiredService<SchoolContext>();
-    context.Database.Migrate();
-    DbInitializer.Initialize(context);
+    var context = services.GetRequiredService<MongoDbContext>();
+    var counterService = services.GetRequiredService<ICounterService>();
+    await MongoDbInitializer.InitializeAsync(context, counterService);
 }
 
 app.Run();

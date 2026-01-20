@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using ContosoUniversity.Data;
-using ContosoUniversity.Models;
+using ContosoUniversity.Models.MongoModels;
 using ContosoUniversity.DTOs;
+using ContosoUniversity.Services;
 
 namespace ContosoUniversity.Controllers;
 
@@ -10,67 +11,58 @@ namespace ContosoUniversity.Controllers;
 [Route("api/[controller]")]
 public class InstructorsController : ControllerBase
 {
-    private readonly SchoolContext _context;
+    private readonly MongoDbContext _context;
+    private readonly ICounterService _counterService;
 
-    public InstructorsController(SchoolContext context)
+    public InstructorsController(MongoDbContext context, ICounterService counterService)
     {
         _context = context;
+        _counterService = counterService;
     }
 
     [HttpGet]
     public async Task<ActionResult<InstructorListResponse>> GetInstructors()
     {
-        var instructors = await _context.Instructors
-            .Include(i => i.OfficeAssignment)
-            .Include(i => i.Courses)
-                .ThenInclude(c => c.Department)
-            .Select(i => new InstructorDto
+        var instructors = await _context.Instructors.Find(_ => true).ToListAsync();
+        var courses = await _context.Courses.Find(_ => true).ToListAsync();
+        var departments = await _context.Departments.Find(_ => true).ToListAsync();
+
+        var instructorDtos = instructors.Select(i =>
+        {
+            var instructorCourses = courses.Where(c => c.InstructorIds.Contains(i.InstructorId)).ToList();
+            var courseDtos = instructorCourses.Select(c =>
             {
-                ID = i.ID,
+                var department = departments.FirstOrDefault(d => d.DepartmentId == c.DepartmentId);
+                return new CourseDto
+                {
+                    CourseID = c.CourseId,
+                    Title = c.Title,
+                    Credits = c.Credits,
+                    DepartmentID = c.DepartmentId,
+                    DepartmentName = department?.Name ?? "Unknown"
+                };
+            }).ToList();
+
+            return new InstructorDto
+            {
+                ID = i.InstructorId,
                 LastName = i.LastName,
                 FirstMidName = i.FirstMidName,
                 HireDate = i.HireDate,
                 FullName = i.FullName,
-                OfficeLocation = i.OfficeAssignment != null ? i.OfficeAssignment.Location : null,
-                Courses = i.Courses.Select(c => new CourseDto
-                {
-                    CourseID = c.CourseID,
-                    Title = c.Title,
-                    Credits = c.Credits,
-                    DepartmentID = c.DepartmentID,
-                    DepartmentName = c.Department.Name
-                }).ToList()
-            })
-            .ToListAsync();
+                OfficeLocation = i.OfficeLocation,
+                Courses = courseDtos
+            };
+        }).ToList();
 
-        return Ok(new InstructorListResponse { Instructors = instructors });
+        return Ok(new InstructorListResponse { Instructors = instructorDtos });
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<InstructorDto>> GetInstructor(int id)
     {
         var instructor = await _context.Instructors
-            .Include(i => i.OfficeAssignment)
-            .Include(i => i.Courses)
-                .ThenInclude(c => c.Department)
-            .Where(i => i.ID == id)
-            .Select(i => new InstructorDto
-            {
-                ID = i.ID,
-                LastName = i.LastName,
-                FirstMidName = i.FirstMidName,
-                HireDate = i.HireDate,
-                FullName = i.FullName,
-                OfficeLocation = i.OfficeAssignment != null ? i.OfficeAssignment.Location : null,
-                Courses = i.Courses.Select(c => new CourseDto
-                {
-                    CourseID = c.CourseID,
-                    Title = c.Title,
-                    Credits = c.Credits,
-                    DepartmentID = c.DepartmentID,
-                    DepartmentName = c.Department.Name
-                }).ToList()
-            })
+            .Find(i => i.InstructorId == id)
             .FirstOrDefaultAsync();
 
         if (instructor == null)
@@ -78,7 +70,37 @@ public class InstructorsController : ControllerBase
             return NotFound();
         }
 
-        return Ok(instructor);
+        var courses = await _context.Courses
+            .Find(c => c.InstructorIds.Contains(instructor.InstructorId))
+            .ToListAsync();
+
+        var departments = await _context.Departments.Find(_ => true).ToListAsync();
+
+        var courseDtos = courses.Select(c =>
+        {
+            var department = departments.FirstOrDefault(d => d.DepartmentId == c.DepartmentId);
+            return new CourseDto
+            {
+                CourseID = c.CourseId,
+                Title = c.Title,
+                Credits = c.Credits,
+                DepartmentID = c.DepartmentId,
+                DepartmentName = department?.Name ?? "Unknown"
+            };
+        }).ToList();
+
+        var instructorDto = new InstructorDto
+        {
+            ID = instructor.InstructorId,
+            LastName = instructor.LastName,
+            FirstMidName = instructor.FirstMidName,
+            HireDate = instructor.HireDate,
+            FullName = instructor.FullName,
+            OfficeLocation = instructor.OfficeLocation,
+            Courses = courseDtos
+        };
+
+        return Ok(instructorDto);
     }
 
     [HttpPost]
@@ -86,29 +108,17 @@ public class InstructorsController : ControllerBase
     {
         var instructor = new Instructor
         {
+            InstructorId = await _counterService.GetNextSequenceValueAsync("instructor"),
             LastName = createDto.LastName,
             FirstMidName = createDto.FirstMidName,
-            HireDate = createDto.HireDate
+            HireDate = createDto.HireDate,
+            OfficeLocation = createDto.OfficeLocation
         };
 
-        _context.Instructors.Add(instructor);
-        await _context.SaveChangesAsync();
+        await _context.Instructors.InsertOneAsync(instructor);
 
-        // Add office assignment if provided
-        if (!string.IsNullOrEmpty(createDto.OfficeLocation))
-        {
-            var officeAssignment = new OfficeAssignment
-            {
-                InstructorID = instructor.ID,
-                Location = createDto.OfficeLocation
-            };
-            _context.OfficeAssignments.Add(officeAssignment);
-            await _context.SaveChangesAsync();
-        }
-
-        // Return the created instructor
-        var result = await GetInstructor(instructor.ID);
-        return CreatedAtAction(nameof(GetInstructor), new { id = instructor.ID }, result.Value);
+        var result = await GetInstructor(instructor.InstructorId);
+        return CreatedAtAction(nameof(GetInstructor), new { id = instructor.InstructorId }, result.Value);
     }
 
     [HttpPut("{id}")]
@@ -119,51 +129,28 @@ public class InstructorsController : ControllerBase
             return BadRequest();
         }
 
-        var instructor = await _context.Instructors
-            .Include(i => i.OfficeAssignment)
-            .FirstOrDefaultAsync(i => i.ID == id);
+        var existingInstructor = await _context.Instructors
+            .Find(i => i.InstructorId == id)
+            .FirstOrDefaultAsync();
 
-        if (instructor == null)
+        if (existingInstructor == null)
         {
             return NotFound();
         }
 
-        instructor.LastName = updateDto.LastName;
-        instructor.FirstMidName = updateDto.FirstMidName;
-        instructor.HireDate = updateDto.HireDate;
+        existingInstructor.LastName = updateDto.LastName;
+        existingInstructor.FirstMidName = updateDto.FirstMidName;
+        existingInstructor.HireDate = updateDto.HireDate;
+        existingInstructor.OfficeLocation = updateDto.OfficeLocation;
 
-        // Handle office assignment
-        if (!string.IsNullOrEmpty(updateDto.OfficeLocation))
-        {
-            if (instructor.OfficeAssignment == null)
-            {
-                instructor.OfficeAssignment = new OfficeAssignment
-                {
-                    InstructorID = instructor.ID,
-                    Location = updateDto.OfficeLocation
-                };
-            }
-            else
-            {
-                instructor.OfficeAssignment.Location = updateDto.OfficeLocation;
-            }
-        }
-        else if (instructor.OfficeAssignment != null)
-        {
-            _context.OfficeAssignments.Remove(instructor.OfficeAssignment);
-        }
+        var result = await _context.Instructors.ReplaceOneAsync(
+            i => i.InstructorId == id,
+            existingInstructor
+        );
 
-        try
+        if (result.MatchedCount == 0)
         {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!InstructorExists(id))
-            {
-                return NotFound();
-            }
-            throw;
+            return NotFound();
         }
 
         return NoContent();
@@ -172,33 +159,36 @@ public class InstructorsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteInstructor(int id)
     {
-        var instructor = await _context.Instructors
-            .Include(i => i.OfficeAssignment)
-            .Include(i => i.Courses)
-            .FirstOrDefaultAsync(i => i.ID == id);
+        // Remove instructor from all courses
+        var coursesWithInstructor = await _context.Courses
+            .Find(c => c.InstructorIds.Contains(id))
+            .ToListAsync();
 
-        if (instructor == null)
+        foreach (var course in coursesWithInstructor)
+        {
+            course.InstructorIds.Remove(id);
+            await _context.Courses.ReplaceOneAsync(c => c.CourseId == course.CourseId, course);
+        }
+
+        // Remove instructor from departments
+        var departmentsWithInstructor = await _context.Departments
+            .Find(d => d.InstructorId == id)
+            .ToListAsync();
+
+        foreach (var department in departmentsWithInstructor)
+        {
+            department.InstructorId = null;
+            department.AdministratorName = null;
+            await _context.Departments.ReplaceOneAsync(d => d.DepartmentId == department.DepartmentId, department);
+        }
+
+        var result = await _context.Instructors.DeleteOneAsync(i => i.InstructorId == id);
+
+        if (result.DeletedCount == 0)
         {
             return NotFound();
         }
 
-        // Remove office assignment if exists
-        if (instructor.OfficeAssignment != null)
-        {
-            _context.OfficeAssignments.Remove(instructor.OfficeAssignment);
-        }
-
-        // Clear course assignments
-        instructor.Courses.Clear();
-
-        _context.Instructors.Remove(instructor);
-        await _context.SaveChangesAsync();
-
         return NoContent();
-    }
-
-    private bool InstructorExists(int id)
-    {
-        return _context.Instructors.Any(e => e.ID == id);
     }
 }

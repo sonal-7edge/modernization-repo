@@ -1,10 +1,6 @@
 {
   "Files": [
     {
-      "Id": "/home/user/Documents/Modernization/modernization-repo/ContosoUniversity/obj/Debug/net8.0/scopedcss/projectbundle/ContosoUniversity.bundle.scp.css",
-      "PackagePath": "staticwebassets/ContosoUniversity.bundle.scp.css"
-    },
-    {
       "Id": "/home/user/Documents/Modernization/modernization-repo/ContosoUniversity/wwwroot/css/site.css",
       "PackagePath": "staticwebassets/css/site.css"
     },

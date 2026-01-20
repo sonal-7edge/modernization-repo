@@ -1,8 +1,9 @@
-using ContosoUniversity.Data;
-using ContosoUniversity.DTOs;
-using ContosoUniversity.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
+using ContosoUniversity.Data;
+using ContosoUniversity.Models.MongoModels;
+using ContosoUniversity.DTOs;
+using ContosoUniversity.Services;
 
 namespace ContosoUniversity.Controllers;
 
@@ -10,57 +11,64 @@ namespace ContosoUniversity.Controllers;
 [Route("api/[controller]")]
 public class DepartmentsController : ControllerBase
 {
-    private readonly SchoolContext _context;
+    private readonly MongoDbContext _context;
+    private readonly ICounterService _counterService;
 
-    public DepartmentsController(SchoolContext context)
+    public DepartmentsController(MongoDbContext context, ICounterService counterService)
     {
         _context = context;
+        _counterService = counterService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<DepartmentListDto>> GetDepartments()
+    public async Task<ActionResult<DepartmentListResponse>> GetDepartments()
     {
-        var departments = await _context.Departments
-            .Include(d => d.Administrator)
-            .Select(d => new DepartmentDto
+        var departments = await _context.Departments.Find(_ => true).ToListAsync();
+        var instructors = await _context.Instructors.Find(_ => true).ToListAsync();
+
+        var departmentDtos = departments.Select(d =>
+        {
+            var administrator = instructors.FirstOrDefault(i => i.InstructorId == d.InstructorId);
+            return new DepartmentDto
             {
-                DepartmentID = d.DepartmentID,
+                DepartmentID = d.DepartmentId,
                 Name = d.Name,
                 Budget = d.Budget,
-                StartDate = d.StartDate,
-                InstructorID = d.InstructorID,
-                AdministratorName = d.Administrator != null ? d.Administrator.FullName : "",
-                ConcurrencyToken = d.ConcurrencyToken != null ? Convert.ToBase64String(d.ConcurrencyToken) : ""
-            })
-            .ToListAsync();
+                StartDate = d.StartDate.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                InstructorID = d.InstructorId,
+                AdministratorName = administrator?.FullName,
+                ConcurrencyToken = d.ConcurrencyToken
+            };
+        }).ToList();
 
-        var result = new DepartmentListDto
-        {
-            Departments = departments
-        };
-
-        return Ok(result);
+        return Ok(new DepartmentListResponse { Departments = departmentDtos });
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<DepartmentDto>> GetDepartment(int id)
     {
         var department = await _context.Departments
-            .Include(d => d.Administrator)
-            .FirstOrDefaultAsync(d => d.DepartmentID == id);
+            .Find(d => d.DepartmentId == id)
+            .FirstOrDefaultAsync();
 
         if (department == null)
+        {
             return NotFound();
+        }
+
+        var administrator = department.InstructorId.HasValue
+            ? await _context.Instructors.Find(i => i.InstructorId == department.InstructorId.Value).FirstOrDefaultAsync()
+            : null;
 
         var departmentDto = new DepartmentDto
         {
-            DepartmentID = department.DepartmentID,
+            DepartmentID = department.DepartmentId,
             Name = department.Name,
             Budget = department.Budget,
-            StartDate = department.StartDate,
-            InstructorID = department.InstructorID,
-            AdministratorName = department.Administrator?.FullName ?? "",
-            ConcurrencyToken = department.ConcurrencyToken != null ? Convert.ToBase64String(department.ConcurrencyToken) : ""
+            StartDate = department.StartDate.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            InstructorID = department.InstructorId,
+            AdministratorName = administrator?.FullName,
+            ConcurrencyToken = department.ConcurrencyToken
         };
 
         return Ok(departmentDto);
@@ -69,74 +77,82 @@ public class DepartmentsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<DepartmentDto>> CreateDepartment(CreateDepartmentDto createDto)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
         var department = new Department
         {
+            DepartmentId = await _counterService.GetNextSequenceValueAsync("department"),
             Name = createDto.Name,
             Budget = createDto.Budget,
-            StartDate = DateTime.SpecifyKind(createDto.StartDate, DateTimeKind.Utc),
-            InstructorID = createDto.InstructorID
+            StartDate = DateTime.Parse(createDto.StartDate),
+            InstructorId = createDto.InstructorID,
+            ConcurrencyToken = Guid.NewGuid().ToByteArray()
         };
 
-        _context.Departments.Add(department);
-        await _context.SaveChangesAsync();
-
-        // Reload to get the administrator info
-        await _context.Entry(department)
-            .Reference(d => d.Administrator)
-            .LoadAsync();
-
-        var departmentDto = new DepartmentDto
+        // Set administrator name if instructor is provided
+        if (createDto.InstructorID.HasValue)
         {
-            DepartmentID = department.DepartmentID,
-            Name = department.Name,
-            Budget = department.Budget,
-            StartDate = department.StartDate,
-            InstructorID = department.InstructorID,
-            AdministratorName = department.Administrator?.FullName ?? "",
-            ConcurrencyToken = department.ConcurrencyToken != null ? Convert.ToBase64String(department.ConcurrencyToken) : ""
-        };
+            var instructor = await _context.Instructors
+                .Find(i => i.InstructorId == createDto.InstructorID.Value)
+                .FirstOrDefaultAsync();
+            department.AdministratorName = instructor?.FullName;
+        }
 
-        return CreatedAtAction(nameof(GetDepartment), new { id = department.DepartmentID }, departmentDto);
+        await _context.Departments.InsertOneAsync(department);
+
+        var result = await GetDepartment(department.DepartmentId);
+        return CreatedAtAction(nameof(GetDepartment), new { id = department.DepartmentId }, result.Value);
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateDepartment(int id, UpdateDepartmentDto updateDto)
     {
         if (id != updateDto.DepartmentID)
+        {
             return BadRequest();
+        }
 
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        var existingDepartment = await _context.Departments
+            .Find(d => d.DepartmentId == id)
+            .FirstOrDefaultAsync();
 
-        var department = await _context.Departments.FindAsync(id);
-        if (department == null)
+        if (existingDepartment == null)
+        {
             return NotFound();
-
-        // Set original concurrency token for optimistic concurrency
-        if (updateDto.ConcurrencyToken != null)
-        {
-            _context.Entry(department).Property(d => d.ConcurrencyToken)
-                .OriginalValue = updateDto.ConcurrencyToken;
         }
 
-        department.Name = updateDto.Name;
-        department.Budget = updateDto.Budget;
-        department.StartDate = DateTime.SpecifyKind(updateDto.StartDate, DateTimeKind.Utc);
-        department.InstructorID = updateDto.InstructorID;
-
-        try
+        // Check concurrency token if provided
+        if (updateDto.ConcurrencyToken != null && 
+            !existingDepartment.ConcurrencyToken?.SequenceEqual(updateDto.ConcurrencyToken) == true)
         {
-            await _context.SaveChangesAsync();
+            return Conflict("The record has been modified by another user.");
         }
-        catch (DbUpdateConcurrencyException)
+
+        existingDepartment.Name = updateDto.Name;
+        existingDepartment.Budget = updateDto.Budget;
+        existingDepartment.StartDate = DateTime.Parse(updateDto.StartDate);
+        existingDepartment.InstructorId = updateDto.InstructorID;
+        existingDepartment.ConcurrencyToken = Guid.NewGuid().ToByteArray();
+
+        // Update administrator name
+        if (updateDto.InstructorID.HasValue)
         {
-            if (!DepartmentExists(id))
-                return NotFound();
-            
-            return Conflict("The record you attempted to edit was modified by another user.");
+            var instructor = await _context.Instructors
+                .Find(i => i.InstructorId == updateDto.InstructorID.Value)
+                .FirstOrDefaultAsync();
+            existingDepartment.AdministratorName = instructor?.FullName;
+        }
+        else
+        {
+            existingDepartment.AdministratorName = null;
+        }
+
+        var result = await _context.Departments.ReplaceOneAsync(
+            d => d.DepartmentId == id,
+            existingDepartment
+        );
+
+        if (result.MatchedCount == 0)
+        {
+            return NotFound();
         }
 
         return NoContent();
@@ -145,31 +161,34 @@ public class DepartmentsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteDepartment(int id)
     {
-        var department = await _context.Departments.FindAsync(id);
-        if (department == null)
-            return NotFound();
+        // Check if department has courses
+        var coursesCount = await _context.Courses.CountDocumentsAsync(c => c.DepartmentId == id);
+        if (coursesCount > 0)
+        {
+            return BadRequest("Cannot delete department with existing courses.");
+        }
 
-        _context.Departments.Remove(department);
-        await _context.SaveChangesAsync();
+        var result = await _context.Departments.DeleteOneAsync(d => d.DepartmentId == id);
+
+        if (result.DeletedCount == 0)
+        {
+            return NotFound();
+        }
 
         return NoContent();
     }
 
     [HttpGet("instructors")]
-    public async Task<ActionResult<List<object>>> GetInstructorsForDropdown()
+    public async Task<ActionResult<List<InstructorSummaryDto>>> GetInstructorsForDropdown()
     {
-        var instructors = await _context.Instructors
-            .Select(i => new { 
-                ID = i.ID, 
-                FullName = i.FullName 
-            })
-            .ToListAsync();
+        var instructors = await _context.Instructors.Find(_ => true).ToListAsync();
 
-        return Ok(instructors);
-    }
+        var instructorDtos = instructors.Select(i => new InstructorSummaryDto
+        {
+            ID = i.InstructorId,
+            FullName = i.FullName
+        }).OrderBy(i => i.FullName).ToList();
 
-    private bool DepartmentExists(int id)
-    {
-        return _context.Departments.Any(e => e.DepartmentID == id);
+        return Ok(instructorDtos);
     }
 }

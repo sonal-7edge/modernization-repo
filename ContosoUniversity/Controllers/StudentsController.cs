@@ -1,8 +1,9 @@
-using ContosoUniversity.Data;
-using ContosoUniversity.DTOs;
-using ContosoUniversity.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
+using ContosoUniversity.Data;
+using ContosoUniversity.Models.MongoModels;
+using ContosoUniversity.DTOs;
+using ContosoUniversity.Services;
 
 namespace ContosoUniversity.Controllers;
 
@@ -10,77 +11,89 @@ namespace ContosoUniversity.Controllers;
 [Route("api/[controller]")]
 public class StudentsController : ControllerBase
 {
-    private readonly SchoolContext _context;
-    private readonly IConfiguration _configuration;
+    private readonly MongoDbContext _context;
+    private readonly ICounterService _counterService;
 
-    public StudentsController(SchoolContext context, IConfiguration configuration)
+    public StudentsController(MongoDbContext context, ICounterService counterService)
     {
         _context = context;
-        _configuration = configuration;
+        _counterService = counterService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<StudentListDto>> GetStudents(
-        string sortOrder = null,
-        string searchString = null,
-        int pageIndex = 1)
+    public async Task<ActionResult<StudentListResponse>> GetStudents(
+        string? sortOrder = null,
+        string? searchString = null,
+        int pageIndex = 1,
+        int pageSize = 10)
     {
-        var studentsQuery = _context.Students.AsQueryable();
+        var filter = FilterDefinition<Student>.Empty;
 
-        // Apply search filter
         if (!string.IsNullOrEmpty(searchString))
         {
-            studentsQuery = studentsQuery.Where(s => 
-                s.LastName.Contains(searchString) || 
-                s.FirstMidName.Contains(searchString));
+            filter = Builders<Student>.Filter.Or(
+                Builders<Student>.Filter.Regex(s => s.LastName, new MongoDB.Bson.BsonRegularExpression(searchString, "i")),
+                Builders<Student>.Filter.Regex(s => s.FirstMidName, new MongoDB.Bson.BsonRegularExpression(searchString, "i"))
+            );
         }
 
-        // Apply sorting
-        studentsQuery = sortOrder switch
+        var sort = sortOrder switch
         {
-            "name_desc" => studentsQuery.OrderByDescending(s => s.LastName),
-            "Date" => studentsQuery.OrderBy(s => s.EnrollmentDate),
-            "date_desc" => studentsQuery.OrderByDescending(s => s.EnrollmentDate),
-            _ => studentsQuery.OrderBy(s => s.LastName)
+            "name_desc" => Builders<Student>.Sort.Descending(s => s.LastName),
+            "Date" => Builders<Student>.Sort.Ascending(s => s.EnrollmentDate),
+            "date_desc" => Builders<Student>.Sort.Descending(s => s.EnrollmentDate),
+            _ => Builders<Student>.Sort.Ascending(s => s.LastName)
         };
 
-        var pageSize = _configuration.GetValue("PageSize", 4);
-        var paginatedList = await PaginatedList<Student>.CreateAsync(
-            studentsQuery.AsNoTracking(), pageIndex, pageSize);
+        var totalCount = await _context.Students.CountDocumentsAsync(filter);
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
-        var result = new StudentListDto
+        var students = await _context.Students
+            .Find(filter)
+            .Sort(sort)
+            .Skip((pageIndex - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
+
+        var studentDtos = students.Select(s => new StudentDto
         {
-            Students = paginatedList.Select(s => new StudentDto
-            {
-                ID = s.ID,
-                LastName = s.LastName,
-                FirstMidName = s.FirstMidName,
-                EnrollmentDate = s.EnrollmentDate
-            }).ToList(),
-            PageIndex = paginatedList.PageIndex,
-            TotalPages = paginatedList.TotalPages,
-            HasPreviousPage = paginatedList.HasPreviousPage,
-            HasNextPage = paginatedList.HasNextPage,
-            TotalCount = paginatedList.TotalCount
-        };
+            Id = s.StudentId,
+            LastName = s.LastName,
+            FirstMidName = s.FirstMidName,
+            EnrollmentDate = s.EnrollmentDate.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            FullName = s.FullName
+        }).ToList();
 
-        return Ok(result);
+        return Ok(new StudentListResponse
+        {
+            Students = studentDtos,
+            PageIndex = pageIndex,
+            TotalPages = totalPages,
+            HasPreviousPage = pageIndex > 1,
+            HasNextPage = pageIndex < totalPages,
+            TotalCount = (int)totalCount
+        });
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<StudentDto>> GetStudent(int id)
     {
-        var student = await _context.Students.FindAsync(id);
-        
+        var student = await _context.Students
+            .Find(s => s.StudentId == id)
+            .FirstOrDefaultAsync();
+
         if (student == null)
+        {
             return NotFound();
+        }
 
         var studentDto = new StudentDto
         {
-            ID = student.ID,
+            Id = student.StudentId,
             LastName = student.LastName,
             FirstMidName = student.FirstMidName,
-            EnrollmentDate = student.EnrollmentDate
+            EnrollmentDate = student.EnrollmentDate.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            FullName = student.FullName
         };
 
         return Ok(studentDto);
@@ -89,56 +102,57 @@ public class StudentsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<StudentDto>> CreateStudent(CreateStudentDto createDto)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
         var student = new Student
         {
+            StudentId = await _counterService.GetNextSequenceValueAsync("student"),
             LastName = createDto.LastName,
             FirstMidName = createDto.FirstMidName,
-            EnrollmentDate = DateTime.SpecifyKind(createDto.EnrollmentDate, DateTimeKind.Utc)
+            EnrollmentDate = DateTime.Parse(createDto.EnrollmentDate)
         };
 
-        _context.Students.Add(student);
-        await _context.SaveChangesAsync();
+        await _context.Students.InsertOneAsync(student);
 
         var studentDto = new StudentDto
         {
-            ID = student.ID,
+            Id = student.StudentId,
             LastName = student.LastName,
             FirstMidName = student.FirstMidName,
-            EnrollmentDate = student.EnrollmentDate
+            EnrollmentDate = student.EnrollmentDate.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            FullName = student.FullName
         };
 
-        return CreatedAtAction(nameof(GetStudent), new { id = student.ID }, studentDto);
+        return CreatedAtAction(nameof(GetStudent), new { id = student.StudentId }, studentDto);
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateStudent(int id, UpdateStudentDto updateDto)
     {
-        if (id != updateDto.ID)
+        if (id != updateDto.Id)
+        {
             return BadRequest();
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var student = await _context.Students.FindAsync(id);
-        if (student == null)
-            return NotFound();
-
-        student.LastName = updateDto.LastName;
-        student.FirstMidName = updateDto.FirstMidName;
-        student.EnrollmentDate = DateTime.SpecifyKind(updateDto.EnrollmentDate, DateTimeKind.Utc);
-
-        try
-        {
-            await _context.SaveChangesAsync();
         }
-        catch (DbUpdateConcurrencyException)
+
+        var existingStudent = await _context.Students
+            .Find(s => s.StudentId == id)
+            .FirstOrDefaultAsync();
+
+        if (existingStudent == null)
         {
-            if (!StudentExists(id))
-                return NotFound();
-            throw;
+            return NotFound();
+        }
+
+        existingStudent.LastName = updateDto.LastName;
+        existingStudent.FirstMidName = updateDto.FirstMidName;
+        existingStudent.EnrollmentDate = DateTime.Parse(updateDto.EnrollmentDate);
+
+        var result = await _context.Students.ReplaceOneAsync(
+            s => s.StudentId == id,
+            existingStudent
+        );
+
+        if (result.MatchedCount == 0)
+        {
+            return NotFound();
         }
 
         return NoContent();
@@ -147,18 +161,13 @@ public class StudentsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteStudent(int id)
     {
-        var student = await _context.Students.FindAsync(id);
-        if (student == null)
-            return NotFound();
+        var result = await _context.Students.DeleteOneAsync(s => s.StudentId == id);
 
-        _context.Students.Remove(student);
-        await _context.SaveChangesAsync();
+        if (result.DeletedCount == 0)
+        {
+            return NotFound();
+        }
 
         return NoContent();
-    }
-
-    private bool StudentExists(int id)
-    {
-        return _context.Students.Any(e => e.ID == id);
     }
 }
